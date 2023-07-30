@@ -62,24 +62,24 @@ void add_neighbors(Node* node)
         if(!is_colliding(x + 1, y))
             add_neighbor(node, &nodes[x + 1][y]);
     if(y > 0 && x > 0)
-        if(!is_colliding(x - 1, y - 1) && (!is_colliding(x - 1, y) && !is_colliding(x, y - 1)))
+        if(!is_colliding(x - 1, y - 1) && !is_colliding(x - 1, y) && !is_colliding(x, y - 1))
             add_neighbor(node, &nodes[x - 1][y - 1]);
     if(y > 0 && x < GRID_WIDTH - 1)
-        if(!is_colliding(x + 1, y - 1) && (!is_colliding(x + 1, y) && !is_colliding(x, y - 1)))
+        if(!is_colliding(x + 1, y - 1) && !is_colliding(x + 1, y) && !is_colliding(x, y - 1))
             add_neighbor(node, &nodes[x + 1][y - 1]);
     if(y < GRID_HEIGHT - 1 && x > 0)
-        if(!is_colliding(x - 1, y + 1) && (!is_colliding(x - 1, y) && !is_colliding(x, y + 1)))
+        if(!is_colliding(x - 1, y + 1) && !is_colliding(x - 1, y) && !is_colliding(x, y + 1))
             add_neighbor(node, &nodes[x - 1][y + 1]);
     if(y < GRID_HEIGHT - 1 && x < GRID_WIDTH - 1)
-        if(!is_colliding(x + 1, y + 1) && (!is_colliding(x + 1, y) && !is_colliding(x, y + 1)))
+        if(!is_colliding(x + 1, y + 1) && !is_colliding(x + 1, y) && !is_colliding(x, y + 1))
             add_neighbor(node, &nodes[x + 1][y + 1]);
 }
 
 void init_nodes()
 {
     int x, y;
-    for(x = 0; x < GRID_WIDTH; x++)
-        for(y = 0; y < GRID_HEIGHT; y++)
+    for(x = 0; x < GRID_HEIGHT; x++)
+        for(y = 0; y < GRID_WIDTH; y++)
         {
             nodes[x][y].pos.x = x;
             nodes[x][y].pos.y = y;
@@ -189,7 +189,6 @@ Node* find_path(Point from, Point to, float h(Point, Point))
             {
                 neighbor->came_from = current;
                 neighbor->dist_from_start = tentative;
-                float old_dist_to_goal = neighbor->dist_to_goal;
                 neighbor->dist_to_goal = tentative + h(neighbor->pos, goal->pos); 
                 heap_insert(&heap, neighbor);
             }
@@ -202,13 +201,13 @@ int main(int argc, char* argv[])
 {
     FILE* f = fopen("grid.txt", "r");
     int row;
-    for(row = 0; (row < 256) && !feof(f); row++)
+    for(row = 0; (row < GRID_HEIGHT) && !feof(f); row++)
         fscanf(f, "%[^\n]\n", grid[row]);
     fclose(f);
     int nrows = row;
 
-    Point from = {5, 3};
-    Point to = {1, 5};
+    Point from = {5, 3}; // x are rows
+    Point to = {1, 5}; // y are columns
     Node* goal = find_path(from, to, dist);
 
     Node* current = goal->came_from;
