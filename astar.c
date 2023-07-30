@@ -3,7 +3,10 @@
 #include <stdbool.h>
 #include <math.h>
 
-char grid[16][16];
+#define GRID_WIDTH 16
+#define GRID_HEIGHT 16
+
+char grid[GRID_HEIGHT][GRID_WIDTH];
 
 typedef struct Point
 {
@@ -21,7 +24,7 @@ typedef struct Node
     struct Node* neighbors[8];
 } Node;
 
-Node nodes[16][16];
+Node nodes[GRID_HEIGHT][GRID_WIDTH];
 
 typedef struct NodeHeap
 {
@@ -43,6 +46,7 @@ void add_neighbor(Node* node, Node* neighbor)
 
 void add_neighbors(Node* node)
 {
+    if(node->nb_neighbors > 0) return;
     int x = node->pos.x;
     int y = node->pos.y;
     if(y > 0)
@@ -50,20 +54,32 @@ void add_neighbors(Node* node)
             add_neighbor(node, &nodes[x][y - 1]);
     if(x > 0)
         if(!is_colliding(x - 1, y))
-            add_neighbor(node, &nodes[x - 1][y]);
-    if(y < 255)
+            add_neighbor(node, &nodes[x - 1][y]);    
+    if(y < GRID_HEIGHT - 1)
         if(!is_colliding(x, y + 1))
             add_neighbor(node, &nodes[x][y + 1]);
-    if(x < 255)
+    if(x < GRID_WIDTH - 1)
         if(!is_colliding(x + 1, y))
             add_neighbor(node, &nodes[x + 1][y]);
+    if(y > 0 && x > 0)
+        if(!is_colliding(x - 1, y - 1) && (!is_colliding(x - 1, y) && !is_colliding(x, y - 1)))
+            add_neighbor(node, &nodes[x - 1][y - 1]);
+    if(y > 0 && x < GRID_WIDTH - 1)
+        if(!is_colliding(x + 1, y - 1) && (!is_colliding(x + 1, y) && !is_colliding(x, y - 1)))
+            add_neighbor(node, &nodes[x + 1][y - 1]);
+    if(y < GRID_HEIGHT - 1 && x > 0)
+        if(!is_colliding(x - 1, y + 1) && (!is_colliding(x - 1, y) && !is_colliding(x, y + 1)))
+            add_neighbor(node, &nodes[x - 1][y + 1]);
+    if(y < GRID_HEIGHT - 1 && x < GRID_WIDTH - 1)
+        if(!is_colliding(x + 1, y + 1) && (!is_colliding(x + 1, y) && !is_colliding(x, y + 1)))
+            add_neighbor(node, &nodes[x + 1][y + 1]);
 }
 
 void init_nodes()
 {
     int x, y;
-    for(x = 0; x < 16; x++)
-        for(y = 0; y < 16; y++)
+    for(x = 0; x < GRID_WIDTH; x++)
+        for(y = 0; y < GRID_HEIGHT; y++)
         {
             nodes[x][y].pos.x = x;
             nodes[x][y].pos.y = y;
@@ -76,7 +92,9 @@ void init_nodes()
 
 float dist(Point a, Point b)
 {
-    return fabsf((float)(a.x - b.x)) + fabsf((float)(a.y - b.y));
+    float dx = fabsf((float)(a.x - b.x));
+    float dy = fabsf((float)(a.y - b.y));
+    return dx < dy ? dy + 0.5 * dx : dx + 0.5 * dy;
 }
 
 float comp(Node* a, Node* b)
