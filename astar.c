@@ -6,17 +6,43 @@
 #define GRID_WIDTH 16
 #define GRID_HEIGHT 16
 
-char grid[GRID_HEIGHT][GRID_WIDTH];
-
-typedef struct Point
+typedef struct Grid
 {
-    int x;
-    int y;
-} Point;
+    char data[GRID_HEIGHT][GRID_WIDTH];
+    int nrows;
+} Grid;
+
+void grid_load(Grid* grid, const char * file_name)
+{
+    FILE* f = fopen(file_name, "r");
+    int row;
+    for(row = 0; (row < GRID_HEIGHT) && !feof(f); row++)
+        fscanf(f, "%[^\n]\n", grid->data[row]);
+    fclose(f);
+    grid->nrows = row;    
+}
+
+void grid_print(Grid* grid)
+{
+    int row;
+    for(row = 0; row < grid->nrows; row++)
+        printf("%s\n", grid->data[row]);        
+}
+
+Grid grid;
+
+bool is_walkable(int row, int column)
+{
+    if(row < 0 || row >= GRID_HEIGHT || column < 0 || column >= GRID_WIDTH)
+        return false;
+    else
+        return grid.data[row][column] != 'x';
+}
 
 typedef struct Node
 {
-    Point pos;
+    int row;
+    int column;
     float dist_from_start; // minimal distance from start known so far
     float dist_to_goal; // current estimate of distance to goal
     struct Node* came_from;
@@ -26,16 +52,19 @@ typedef struct Node
 
 Node nodes[GRID_HEIGHT][GRID_WIDTH];
 
-typedef struct NodeHeap
+void init_nodes()
 {
-    Node* data[256];
-    int size;
-    float (*compare)(Node*, Node*);
-} NodeHeap;
-
-bool is_colliding(int x, int y)
-{
-    return grid[x][y] == 'x';
+    int row, column;
+    for(row = 0; row < GRID_HEIGHT; row++)
+        for(column = 0; column < GRID_WIDTH; column++)
+        {
+            nodes[row][column].row = row;
+            nodes[row][column].column = column;
+            nodes[row][column].dist_from_start = FLT_MAX;
+            nodes[row][column].dist_to_goal = FLT_MAX;
+            nodes[row][column].came_from = NULL;
+            nodes[row][column].nb_neighbors = 0;            
+        }
 }
 
 void add_neighbor(Node* node, Node* neighbor)
@@ -47,60 +76,44 @@ void add_neighbor(Node* node, Node* neighbor)
 void add_neighbors(Node* node)
 {
     if(node->nb_neighbors > 0) return;
-    int x = node->pos.x;
-    int y = node->pos.y;
-    if(y > 0)
-        if(!is_colliding(x, y - 1))
-            add_neighbor(node, &nodes[x][y - 1]);
-    if(x > 0)
-        if(!is_colliding(x - 1, y))
-            add_neighbor(node, &nodes[x - 1][y]);    
-    if(y < GRID_HEIGHT - 1)
-        if(!is_colliding(x, y + 1))
-            add_neighbor(node, &nodes[x][y + 1]);
-    if(x < GRID_WIDTH - 1)
-        if(!is_colliding(x + 1, y))
-            add_neighbor(node, &nodes[x + 1][y]);
-    if(y > 0 && x > 0)
-        if(!is_colliding(x - 1, y - 1) && !is_colliding(x - 1, y) && !is_colliding(x, y - 1))
-            add_neighbor(node, &nodes[x - 1][y - 1]);
-    if(y > 0 && x < GRID_WIDTH - 1)
-        if(!is_colliding(x + 1, y - 1) && !is_colliding(x + 1, y) && !is_colliding(x, y - 1))
-            add_neighbor(node, &nodes[x + 1][y - 1]);
-    if(y < GRID_HEIGHT - 1 && x > 0)
-        if(!is_colliding(x - 1, y + 1) && !is_colliding(x - 1, y) && !is_colliding(x, y + 1))
-            add_neighbor(node, &nodes[x - 1][y + 1]);
-    if(y < GRID_HEIGHT - 1 && x < GRID_WIDTH - 1)
-        if(!is_colliding(x + 1, y + 1) && !is_colliding(x + 1, y) && !is_colliding(x, y + 1))
-            add_neighbor(node, &nodes[x + 1][y + 1]);
+    int row = node->row;
+    int column = node->column;
+    if(is_walkable(row, column - 1))
+        add_neighbor(node, &nodes[row][column - 1]);
+    if(is_walkable(row - 1, column))
+        add_neighbor(node, &nodes[row - 1][column]);    
+    if(is_walkable(row, column + 1))
+        add_neighbor(node, &nodes[row][column + 1]);
+    if(is_walkable(row + 1, column))
+        add_neighbor(node, &nodes[row + 1][column]);
+    if(is_walkable(row - 1, column - 1) && is_walkable(row - 1, column) && is_walkable(row, column - 1))
+        add_neighbor(node, &nodes[row - 1][column - 1]);
+    if(is_walkable(row + 1, column - 1) && is_walkable(row + 1, column) && is_walkable(row, column - 1))
+        add_neighbor(node, &nodes[row + 1][column - 1]);
+    if(is_walkable(row - 1, column + 1) && is_walkable(row - 1, column) && is_walkable(row, column + 1))
+        add_neighbor(node, &nodes[row - 1][column + 1]);
+    if(is_walkable(row + 1, column + 1) && is_walkable(row + 1, column) && is_walkable(row, column + 1))
+        add_neighbor(node, &nodes[row + 1][column + 1]);
 }
 
-void init_nodes()
+float node_distance(Node* a, Node* b)
 {
-    int x, y;
-    for(x = 0; x < GRID_HEIGHT; x++)
-        for(y = 0; y < GRID_WIDTH; y++)
-        {
-            nodes[x][y].pos.x = x;
-            nodes[x][y].pos.y = y;
-            nodes[x][y].dist_from_start = FLT_MAX;
-            nodes[x][y].dist_to_goal = FLT_MAX;
-            nodes[x][y].came_from = NULL;
-            nodes[x][y].nb_neighbors = 0;            
-        }
-}
-
-float dist(Point a, Point b)
-{
-    float dx = fabsf((float)(a.x - b.x));
-    float dy = fabsf((float)(a.y - b.y));
+    float dx = fabsf((float)(a->row - b->row));
+    float dy = fabsf((float)(a->column - b->column));
     return dx < dy ? dy + 0.5 * dx : dx + 0.5 * dy;
 }
 
-float comp(Node* a, Node* b)
+float node_compare(Node* a, Node* b)
 {
     return b->dist_to_goal - a->dist_to_goal;
 }
+
+typedef struct NodeHeap
+{
+    Node* data[256];
+    int size;
+    float (*compare)(Node*, Node*);
+} NodeHeap;
 
 void sift_up(NodeHeap* heap, int idx)
 {
@@ -159,20 +172,17 @@ Node* heap_pop(NodeHeap* heap)
     return head;
 }
 
-Node* find_path(Point from, Point to, float h(Point, Point))
+Node* find_path(Node* start, Node* goal, float h(Node*, Node*))
 {
     init_nodes();
 
     NodeHeap heap = {0};
-    heap.compare = comp;
+    heap.compare = node_compare;
     
-    Node* start = &nodes[from.x][from.y];
     start->came_from = start;
     start->dist_from_start = 0;
-    start->dist_to_goal = dist(from, to);
+    start->dist_to_goal = node_distance(start, goal);
     heap_insert(&heap, start);
-
-    Node* goal = &nodes[to.x][to.y];
 
     while(heap.size > 0)
     {
@@ -184,12 +194,12 @@ Node* find_path(Point from, Point to, float h(Point, Point))
         for(i = 0; i < current->nb_neighbors; i++)
         {
             Node* neighbor = current->neighbors[i];
-            float tentative = current->dist_from_start + dist(current->pos, neighbor->pos);
+            float tentative = current->dist_from_start + node_distance(current, neighbor);
             if(tentative < neighbor->dist_from_start)
             {
                 neighbor->came_from = current;
                 neighbor->dist_from_start = tentative;
-                neighbor->dist_to_goal = tentative + h(neighbor->pos, goal->pos); 
+                neighbor->dist_to_goal = tentative + h(neighbor, goal); 
                 heap_insert(&heap, neighbor);
             }
         }
@@ -199,25 +209,17 @@ Node* find_path(Point from, Point to, float h(Point, Point))
 
 int main(int argc, char* argv[])
 {
-    FILE* f = fopen("grid.txt", "r");
-    int row;
-    for(row = 0; (row < GRID_HEIGHT) && !feof(f); row++)
-        fscanf(f, "%[^\n]\n", grid[row]);
-    fclose(f);
-    int nrows = row;
+    grid_load(&grid, "grid.txt");
 
-    Point from = {5, 3}; // x are rows
-    Point to = {1, 5}; // y are columns
-    Node* goal = find_path(from, to, dist);
+    Node* start = &nodes[5][3];
+    Node* goal = &nodes[1][5];
+    find_path(start, goal, node_distance);
 
-    Node* current = goal->came_from;
-    while(current != &nodes[5][3])
-    {
-        grid[current->pos.x][current->pos.y] = '.';
-        current = current->came_from;
-    }
+    Node* current;
+    for(current = goal->came_from; current != start; current = current->came_from)
+        grid.data[current->row][current->column] = '.';
 
-    for(row = 0; row < nrows; row++)
-        printf("%s\n", grid[row]);    
+    grid_print(&grid);
+
     return 0;
 }
