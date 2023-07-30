@@ -2,6 +2,7 @@
 #include <float.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 
 #define GRID_WIDTH 16
 #define GRID_HEIGHT 16
@@ -10,19 +11,37 @@ typedef struct Grid
 {
     char data[GRID_HEIGHT][GRID_WIDTH];
     int nrows;
+    int start_row;
+    int start_column;
+    int goal_row;
+    int goal_column;
 } Grid;
 
 void grid_load(Grid* grid, const char * file_name)
 {
     FILE* f = fopen(file_name, "r");
     int row;
-    for(row = 0; (row < GRID_HEIGHT) && !feof(f); row++)
+    for(row = 0; row < GRID_HEIGHT && !feof(f); row++)
+    {
         fscanf(f, "%[^\n]\n", grid->data[row]);
+        char* pc = strchr(grid->data[row], '+');
+        if(pc != NULL)
+        {
+            grid->start_row = row;
+            grid->start_column = pc - grid->data[row];
+        }
+        pc = strchr(grid->data[row], 'o');
+        if(pc != NULL)
+        {
+            grid->goal_row = row;
+            grid->goal_column = pc - grid->data[row];            
+        }
+    }
     fclose(f);
     grid->nrows = row;    
 }
 
-void grid_print(Grid* grid)
+void grid_print(const Grid* grid)
 {
     int row;
     for(row = 0; row < grid->nrows; row++)
@@ -96,14 +115,14 @@ void add_neighbors(Node* node)
         add_neighbor(node, &nodes[row + 1][column + 1]);
 }
 
-float node_distance(Node* a, Node* b)
+float node_distance(const Node* a, const Node* b)
 {
     float dx = fabsf((float)(a->row - b->row));
     float dy = fabsf((float)(a->column - b->column));
     return dx < dy ? dy + 0.5 * dx : dx + 0.5 * dy;
 }
 
-float node_compare(Node* a, Node* b)
+float node_compare(const Node* a, const Node* b)
 {
     return b->dist_to_goal - a->dist_to_goal;
 }
@@ -112,7 +131,7 @@ typedef struct NodeHeap
 {
     Node* data[256];
     int size;
-    float (*compare)(Node*, Node*);
+    float (*compare)(const Node*, const Node*);
 } NodeHeap;
 
 void sift_up(NodeHeap* heap, int idx)
@@ -172,7 +191,7 @@ Node* heap_pop(NodeHeap* heap)
     return head;
 }
 
-Node* find_path(Node* start, Node* goal, float h(Node*, Node*))
+Node* find_path(Node* start, Node* goal, float h(const Node*, const Node*))
 {
     init_nodes();
 
@@ -211,8 +230,8 @@ int main(int argc, char* argv[])
 {
     grid_load(&grid, "grid.txt");
 
-    Node* start = &nodes[5][3];
-    Node* goal = &nodes[1][5];
+    Node* start = &nodes[grid.start_row][grid.start_column];
+    Node* goal = &nodes[grid.goal_row][grid.goal_column];
     find_path(start, goal, node_distance);
 
     Node* current;
